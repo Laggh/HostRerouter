@@ -9,6 +9,11 @@ func main() {
 	a := app.New()
 	w := a.NewWindow("Hello World")
 
-	w.SetContent(widget.NewLabel("Hello World!"))
+	button := widget.NewButton("Click Me", func() {
+		w.SetContent(widget.NewLabel("Button Clicked!"))
+	})
+
+	// Set initial content
+	w.SetContent(button)
 	w.ShowAndRun()
 }
