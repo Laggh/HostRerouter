@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"strings"
 
 	"fyne.io/fyne/v2"
@@ -50,7 +51,7 @@ func prepareHostFile() (int, int) {
 	}
 
 	newHostStr := strings.Join(lines, "\n")
-	err := saveHostFile(newHostStr)
+	err := saveHostFileRaw(newHostStr)
 	if err != nil {
 		fmt.Println("Error saving hosts file:", err)
 		return -1, -1
@@ -59,12 +60,65 @@ func prepareHostFile() (int, int) {
 	return startIndex, endIndex
 }
 
-func saveHostFile(content string) error {
+func saveHostFile(overrides []override) error {
+	hostStr := loadHostFile()
+	lines := strings.Split(hostStr, "\n")
+	startIndex, endIndex := prepareHostFile()
+
+	if startIndex == -1 || endIndex == -1 {
+		return fmt.Errorf("Could not find Host Rerouter tags")
+	}
+	var newLines []string
+	newLines = append(newLines, lines[:startIndex+1]...)
+	for _, ovr := range overrides {
+		line := ""
+		if !ovr.enabled {
+			line += "# "
+		}
+		line += fmt.Sprintf("%s %s", ovr.override, ovr.original)
+		newLines = append(newLines, line)
+	}
+	newLines = append(newLines, lines[endIndex:]...)
+	newHostStr := strings.Join(newLines, "\n")
+	return saveHostFileRaw(newHostStr)
+}
+
+func saveHostFileRaw(content string) error {
 	return os.WriteFile("C:/Windows/System32/drivers/etc/hosts", []byte(content), 0644)
 }
 
 func parseHostFile(content string) []override {
-	return []override{}
+	fmt.Println("Parsing host file...")
+	var overrides []override
+	startIndex, endIndex := prepareHostFile()
+	fmt.Println("Start index:", startIndex, "End index:", endIndex)
+	if startIndex == -1 || endIndex == -1 || startIndex >= endIndex {
+		return overrides
+	}
+
+	lines := strings.Split(content, "\n")
+	for _, line := range lines[startIndex+1 : endIndex] {
+		thisOverride := override{original: "", override: "", enabled: false}
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+
+		if strings.HasPrefix(line, "#") {
+			thisOverride.enabled = false
+			line = strings.TrimPrefix(line, "#")
+			line = strings.TrimSpace(line)
+		}
+
+		parts := strings.Fields(line)
+		if len(parts) >= 2 {
+			thisOverride.override = parts[0]
+			thisOverride.original = parts[1]
+			overrides = append(overrides, thisOverride)
+		}
+	}
+	fmt.Println("Parsed overrides:", overrides)
+	return overrides
 }
 
 func resizeTable(table *widget.Table, width int) {
@@ -111,7 +165,10 @@ func main() {
 	w := a.NewWindow("Hello World")
 	w.SetTitle("Host Rerouter")
 
-	overrides := []override{{original: "site.com", override: "127.0.0.1", enabled: false}}
+	//overrides := []override{{original: "site.com", override: "127.0.0.1", enabled: false}}
+	overrides := parseHostFile(loadHostFile())
+	fmt.Println(loadHostFile())
+	fmt.Println(overrides)
 
 	table := widget.NewTable(
 		//lenght
@@ -150,10 +207,15 @@ func main() {
 	table.ShowHeaderRow = true
 	table.ShowHeaderColumn = true
 	table.CreateHeader = func() fyne.CanvasObject {
-		return widget.NewLabel("000")
+		return container.NewStack(widget.NewLabel("000"))
 	}
 	table.UpdateHeader = func(id widget.TableCellID, o fyne.CanvasObject) {
-		label := o.(*widget.Label)
+
+		//label := o.(*widget.Label)
+		label := widget.NewLabel("")
+		o.(*fyne.Container).Objects = nil
+		o.(*fyne.Container).Add(label)
+
 		if id.Row == -1 && id.Col == -1 {
 			label.SetText("")
 		} else if id.Row == -1 {
@@ -166,17 +228,35 @@ func main() {
 	}
 
 	btnContainer := container.NewVBox(
-		widget.NewButton("Action", func() {
-			fmt.Println("Printando algo no console!")
+		widget.NewButton("Salvar", func() {
+			fmt.Println("Salvando alterações...")
+			err := saveHostFile(overrides)
+			if err != nil {
+				fmt.Println("Erro ao salvar o arquivo hosts:", err)
+			} else {
+				fmt.Println("Arquivo hosts salvo com sucesso.")
+			}
 		}),
-		widget.NewButton("Action", func() {
-			fmt.Println("Printando algo no console!")
+		widget.NewButton("Novo", func() {
+			overrides = append(overrides, override{original: "example.com", override: "127.0.0.1", enabled: true})
 		}),
-		widget.NewButton("Action", func() {
-			fmt.Println("Printando algo no console!")
+		widget.NewButton("Apagar", func() {
+			//TODO: Pegar o indice selecionado da tabela (atualmente hardcoded)
+			selecionado := 1
+			if selecionado >= 0 && selecionado < len(overrides) {
+				overrides = append(overrides[:selecionado], overrides[selecionado+1:]...)
+				table.Refresh()
+			}
 		}),
-		widget.NewButton("Action", func() {
-			fmt.Println("Printando algo no console!")
+		widget.NewButton("Arquivo", func() {
+			//usa o cmd para abrir o arquivo hosts no notepad
+			fmt.Println("Abrindo arquivo hosts no notepad...")
+			cmd := exec.Command("notepad.exe", "C:/Windows/System32/drivers/etc/hosts")
+			err := cmd.Start()
+			if err != nil {
+				fmt.Println("Erro ao abrir o arquivo hosts:", err)
+			}
+
 		}),
 	)
 	// resizeTable(table, int(w.Canvas().Size().Width))
