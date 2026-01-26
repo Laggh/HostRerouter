@@ -164,13 +164,34 @@ func main() {
 	a := app.New()
 	w := a.NewWindow("Hello World")
 	w.SetTitle("Host Rerouter")
+	selectedEntryIndex := -1
+	madeChange := false
 
-	//overrides := []override{{original: "site.com", override: "127.0.0.1", enabled: false}}
 	overrides := parseHostFile(loadHostFile())
 	fmt.Println(loadHostFile())
 	fmt.Println(overrides)
 
-	table := widget.NewTable(
+	var table *widget.Table
+	var saveBtn *widget.Button
+	var discardBtn *widget.Button
+
+	updateButtons := func() {
+		fmt.Println("update buttons")
+		fmt.Println("madeChange:", madeChange)
+		if madeChange {
+			saveBtn.Importance = widget.HighImportance
+			discardBtn.Importance = widget.MediumImportance
+			discardBtn.Text = "Descartar"
+		} else {
+			saveBtn.Importance = widget.MediumImportance
+			//discardBtn.Importance = widget.LowImportance
+			discardBtn.Text = "Atualizar"
+		}
+		saveBtn.Refresh()
+		discardBtn.Refresh()
+	}
+
+	table = widget.NewTable(
 		//lenght
 		func() (int, int) {
 			return len(overrides), 3
@@ -193,13 +214,35 @@ func main() {
 				entry.OnChanged = func(s string) {
 					overrides[row].original = s
 					thisOverride.original = s
+					madeChange = true
+					updateButtons()
 				}
 
 				o.(*fyne.Container).Add(entry)
 			case 1:
-				o.(*fyne.Container).Add(widget.NewLabel(thisOverride.override))
+				entry := widget.NewEntry()
+				entry.SetText(thisOverride.override)
+				entry.OnChanged = func(s string) {
+					overrides[row].override = s
+					thisOverride.override = s
+					madeChange = true
+					updateButtons()
+				}
+
+				o.(*fyne.Container).Add(entry)
 			case 2:
-				o.(*fyne.Container).Add(widget.NewLabel(fmt.Sprintf("%v", thisOverride.enabled)))
+				checkbox := widget.NewCheck("", func(b bool) {
+					overrides[row].enabled = b
+					thisOverride.enabled = b
+					madeChange = true
+					updateButtons()
+				})
+				checkbox.Checked = thisOverride.enabled
+				center := container.NewCenter(checkbox)
+
+				o.(*fyne.Container).Add(center)
+
+				//o.(*fyne.Container).Add(widget.NewLabel(fmt.Sprintf("%v", thisOverride.enabled)))
 			}
 		},
 	)
@@ -212,41 +255,90 @@ func main() {
 	table.UpdateHeader = func(id widget.TableCellID, o fyne.CanvasObject) {
 
 		//label := o.(*widget.Label)
-		label := widget.NewLabel("")
-		o.(*fyne.Container).Objects = nil
-		o.(*fyne.Container).Add(label)
+		//label := widget.NewLabel("")
 
-		if id.Row == -1 && id.Col == -1 {
-			label.SetText("")
-		} else if id.Row == -1 {
+		// btn := widget.NewButton("", nil)
+		// o.(*fyne.Container).Objects = nil
+		// o.(*fyne.Container).Add(btn)
+
+		if id.Row == -1 && id.Col == -1 { //canto
+			label := widget.NewLabel("")
+			o.(*fyne.Container).Objects = nil
+			o.(*fyne.Container).Add(label)
+			return
+		} else if id.Row == -1 { //topo
 			texts := [3]string{"Original", "Override", "Enabled"}
+			label := widget.NewLabel(texts[id.Col])
+			o.(*fyne.Container).Objects = nil
+			o.(*fyne.Container).Add(label)
+			return
+		} else { //esquerda
+			btn := widget.NewButton(fmt.Sprintf("%d", id.Row+1), func() {
+				fmt.Printf("Clicou no botao da linha %d\n", id.Row+1)
+				selectedEntryIndex = id.Row
+				table.Refresh()
+			})
 
-			label.SetText(texts[id.Col])
-		} else {
-			label.SetText(fmt.Sprintf("%d", id.Row+1))
+			if id.Row == selectedEntryIndex {
+				btn.Importance = widget.HighImportance
+			} else {
+				btn.Importance = widget.MediumImportance
+			}
+
+			o.(*fyne.Container).Objects = nil
+			o.(*fyne.Container).Add(btn)
+			return
 		}
 	}
 
+	saveBtn = widget.NewButton("Salvar", func() {
+		fmt.Println("Salvando alterações...")
+		err := saveHostFile(overrides)
+		if err != nil {
+			fmt.Println("Erro ao salvar o arquivo hosts:", err)
+		} else {
+			fmt.Println("Arquivo hosts salvo com sucesso.")
+		}
+		madeChange = false
+		updateButtons()
+	})
+
+	discardBtn = widget.NewButton("Descartar", func() {
+		fmt.Println("Descartando alterações...")
+		overrides = parseHostFile(loadHostFile())
+		table.Refresh()
+		madeChange = false
+		updateButtons()
+	})
+	updateButtons()
+
 	btnContainer := container.NewVBox(
-		widget.NewButton("Salvar", func() {
-			fmt.Println("Salvando alterações...")
-			err := saveHostFile(overrides)
-			if err != nil {
-				fmt.Println("Erro ao salvar o arquivo hosts:", err)
-			} else {
-				fmt.Println("Arquivo hosts salvo com sucesso.")
-			}
-		}),
+		saveBtn,
+		discardBtn,
 		widget.NewButton("Novo", func() {
 			overrides = append(overrides, override{original: "example.com", override: "127.0.0.1", enabled: true})
+			selectedEntryIndex = len(overrides) - 1
+			madeChange = true
+			updateButtons()
+			table.Refresh()
+			fmt.Println("Nova entrada adicionada.")
 		}),
 		widget.NewButton("Apagar", func() {
 			//TODO: Pegar o indice selecionado da tabela (atualmente hardcoded)
-			selecionado := 1
+			if selectedEntryIndex == -1 {
+				fmt.Println("Nenhuma entrada selecionada para apagar.")
+				return
+			}
+
+			selecionado := selectedEntryIndex
+			fmt.Println("Apagando entrada selecionada:", selecionado)
 			if selecionado >= 0 && selecionado < len(overrides) {
 				overrides = append(overrides[:selecionado], overrides[selecionado+1:]...)
 				table.Refresh()
 			}
+			selectedEntryIndex = -1
+			madeChange = true
+			updateButtons()
 		}),
 		widget.NewButton("Arquivo", func() {
 			//usa o cmd para abrir o arquivo hosts no notepad
@@ -258,7 +350,63 @@ func main() {
 			}
 
 		}),
+		widget.NewButton("Editar", func() {
+			//Cria uma nova janela com um textarea com o conteudo do arquivo hosts
+			editWindow := a.NewWindow("Editar manualmente hosts")
+			hostContent := loadHostFile()
+			textArea := widget.NewMultiLineEntry()
+			textArea.SetText(hostContent)
+			saveManualBtn := widget.NewButton("Salvar", func() {
+				newContent := textArea.Text
+				err := saveHostFileRaw(newContent)
+				if err != nil {
+					fmt.Println("Erro ao salvar o arquivo hosts:", err)
+				} else {
+					fmt.Println("Arquivo hosts salvo com sucesso.")
+				}
+				overrides = parseHostFile(newContent)
+				madeChange = false
+				updateButtons()
+				table.Refresh()
+				editWindow.Close()
+
+			})
+			closeManualBtn := widget.NewButton("Fechar", func() {
+				editWindow.Close()
+				table.Refresh()
+			})
+			content := container.NewBorder(nil, container.NewHBox(saveManualBtn, closeManualBtn), nil, nil, container.NewScroll(textArea))
+			editWindow.SetContent(content)
+			editWindow.Resize(fyne.NewSize(600, 400))
+			editWindow.Show()
+		}),
+		widget.NewButton("Ajuda", func() {
+			helpWindow := a.NewWindow("Ajuda")
+
+			content, err := os.ReadFile("help.md")
+			if err != nil {
+				helpWindow.SetContent(widget.NewLabel("Erro ao carregar ajuda: " + err.Error()))
+			} else {
+				rich := widget.NewRichTextFromMarkdown(string(content))
+				rich.Wrapping = fyne.TextWrapWord
+				helpWindow.SetContent(container.NewScroll(rich))
+			}
+
+			helpWindow.Resize(fyne.NewSize(500, 400))
+			helpWindow.Show()
+		}),
+		widget.NewButton("Creditos", func() {
+			//abre o github do autor
+			url := "https://github.com/Laggh"
+			fmt.Println("Abrindo pagina do autor no github...")
+			cmd := exec.Command("rundll32", "url.dll,FileProtocolHandler", url)
+			err := cmd.Start()
+			if err != nil {
+				fmt.Println("Erro ao abrir a pagina do autor:", err)
+			}
+		}),
 	)
+
 	// resizeTable(table, int(w.Canvas().Size().Width))
 	content := container.NewBorder(nil, nil, nil, btnContainer, &tableWrapper{Table: table})
 
