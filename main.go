@@ -313,6 +313,12 @@ func main() {
 		}
 		madeChange = false
 		updateButtons()
+
+		if !checkAdmin() {
+			dialog.ShowInformation("Aviso de Permissão", "O aplicativo não está sendo executado como administrador.\nAs alterações não puderam ser salvas no arquivo hosts.", w)
+		}
+		overrides = parseHostFile(loadHostFile())
+		table.Refresh()
 	})
 
 	discardBtn = widget.NewButton("Descartar", func() {
@@ -376,6 +382,11 @@ func main() {
 				} else {
 					fmt.Println("Arquivo hosts salvo com sucesso.")
 				}
+
+				if !checkAdmin() {
+					dialog.ShowInformation("Aviso de Permissão", "O aplicativo não está sendo executado como administrador.\nAs alterações não puderam ser salvas no arquivo hosts.", w)
+				}
+
 				overrides = parseHostFile(newContent)
 				madeChange = false
 				updateButtons()
