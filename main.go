@@ -13,10 +13,18 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
+const DO_PRINT = false
+
+func println(a ...any) {
+	if DO_PRINT {
+		fmt.Println(a...)
+	}
+}
+
 func loadHostFile() string {
 	content, err := os.ReadFile("C:/Windows/System32/drivers/etc/hosts")
 	if err != nil {
-		fmt.Println("Error opening hosts file:", err)
+		println("Error opening hosts file:", err)
 		return ""
 	}
 	return string(content)
@@ -54,10 +62,10 @@ func prepareHostFile() (int, int) {
 	newHostStr := strings.Join(lines, "\n")
 	err := saveHostFileRaw(newHostStr)
 	if err != nil {
-		fmt.Println("Error saving hosts file:", err)
+		println("Error saving hosts file:", err)
 		return -1, -1
 	}
-	fmt.Println("put rerouter tags")
+	println("put rerouter tags")
 	return startIndex, endIndex
 }
 
@@ -89,10 +97,10 @@ func saveHostFileRaw(content string) error {
 }
 
 func parseHostFile(content string) []override {
-	fmt.Println("Parsing host file...")
+	println("Parsing host file...")
 	var overrides []override
 	startIndex, endIndex := prepareHostFile()
-	fmt.Println("Start index:", startIndex, "End index:", endIndex)
+	println("Start index:", startIndex, "End index:", endIndex)
 	if startIndex == -1 || endIndex == -1 || startIndex >= endIndex {
 		return overrides
 	}
@@ -118,13 +126,13 @@ func parseHostFile(content string) []override {
 			overrides = append(overrides, thisOverride)
 		}
 	}
-	fmt.Println("Parsed overrides:", overrides)
+	println("Parsed overrides:", overrides)
 	return overrides
 }
 
 func resizeTable(table *widget.Table, width int) {
 
-	fmt.Println("Resizing table to width:", width)
+	println("Resizing table to width:", width)
 
 	remainingWidth := width
 
@@ -133,8 +141,6 @@ func resizeTable(table *widget.Table, width int) {
 
 	table.SetColumnWidth(0, float32(remainingWidth/2))
 	table.SetColumnWidth(1, float32(remainingWidth/2))
-
-	return
 }
 
 type override struct {
@@ -149,14 +155,6 @@ type tableWrapper struct {
 func (t *tableWrapper) Resize(s fyne.Size) {
 	t.Table.Resize(s)
 	resizeTable(t.Table, int(s.Width))
-}
-
-func littleTestFunction() {
-	fmt.Println("Little test function executed")
-	fmt.Println(loadHostFile())
-	prepareHostFile()
-	fmt.Println("After preparing hosts file:")
-	fmt.Println(loadHostFile())
 }
 
 func checkAdmin() bool {
@@ -180,16 +178,16 @@ func main() {
 	madeChange := false
 
 	overrides := parseHostFile(loadHostFile())
-	fmt.Println(loadHostFile())
-	fmt.Println(overrides)
+	println(loadHostFile())
+	println(overrides)
 
 	var table *widget.Table
 	var saveBtn *widget.Button
 	var discardBtn *widget.Button
 
 	updateButtons := func() {
-		fmt.Println("update buttons")
-		fmt.Println("madeChange:", madeChange)
+		println("update buttons")
+		println("madeChange:", madeChange)
 		if madeChange {
 			saveBtn.Importance = widget.HighImportance
 			discardBtn.Importance = widget.MediumImportance
@@ -304,12 +302,12 @@ func main() {
 	}
 
 	saveBtn = widget.NewButton("Salvar", func() {
-		fmt.Println("Salvando alterações...")
+		println("Salvando alterações...")
 		err := saveHostFile(overrides)
 		if err != nil {
-			fmt.Println("Erro ao salvar o arquivo hosts:", err)
+			println("Erro ao salvar o arquivo hosts:", err)
 		} else {
-			fmt.Println("Arquivo hosts salvo com sucesso.")
+			println("Arquivo hosts salvo com sucesso.")
 		}
 		madeChange = false
 		updateButtons()
@@ -322,7 +320,7 @@ func main() {
 	})
 
 	discardBtn = widget.NewButton("Descartar", func() {
-		fmt.Println("Descartando alterações...")
+		println("Descartando alterações...")
 		overrides = parseHostFile(loadHostFile())
 		table.Refresh()
 		madeChange = false
@@ -339,17 +337,17 @@ func main() {
 			madeChange = true
 			updateButtons()
 			table.Refresh()
-			fmt.Println("Nova entrada adicionada.")
+			println("Nova entrada adicionada.")
 		}),
 		widget.NewButton("Apagar", func() {
 			//TODO: Pegar o indice selecionado da tabela (atualmente hardcoded)
 			if selectedEntryIndex == -1 {
-				fmt.Println("Nenhuma entrada selecionada para apagar.")
+				println("Nenhuma entrada selecionada para apagar.")
 				return
 			}
 
 			selecionado := selectedEntryIndex
-			fmt.Println("Apagando entrada selecionada:", selecionado)
+			println("Apagando entrada selecionada:", selecionado)
 			if selecionado >= 0 && selecionado < len(overrides) {
 				overrides = append(overrides[:selecionado], overrides[selecionado+1:]...)
 				table.Refresh()
@@ -360,11 +358,11 @@ func main() {
 		}),
 		widget.NewButton("Arquivo", func() {
 			//usa o cmd para abrir o arquivo hosts no notepad
-			fmt.Println("Abrindo arquivo hosts no notepad...")
+			println("Abrindo arquivo hosts no notepad...")
 			cmd := exec.Command("notepad.exe", "C:/Windows/System32/drivers/etc/hosts")
 			err := cmd.Start()
 			if err != nil {
-				fmt.Println("Erro ao abrir o arquivo hosts:", err)
+				println("Erro ao abrir o arquivo hosts:", err)
 			}
 
 		}),
@@ -378,9 +376,9 @@ func main() {
 				newContent := textArea.Text
 				err := saveHostFileRaw(newContent)
 				if err != nil {
-					fmt.Println("Erro ao salvar o arquivo hosts:", err)
+					println("Erro ao salvar o arquivo hosts:", err)
 				} else {
-					fmt.Println("Arquivo hosts salvo com sucesso.")
+					println("Arquivo hosts salvo com sucesso.")
 				}
 
 				if !checkAdmin() {
@@ -421,11 +419,11 @@ func main() {
 		widget.NewButton("Creditos", func() {
 			//abre o github do autor
 			url := "https://github.com/Laggh"
-			fmt.Println("Abrindo pagina do autor no github...")
+			println("Abrindo pagina do autor no github...")
 			cmd := exec.Command("rundll32", "url.dll,FileProtocolHandler", url)
 			err := cmd.Start()
 			if err != nil {
-				fmt.Println("Erro ao abrir a pagina do autor:", err)
+				println("Erro ao abrir a pagina do autor:", err)
 			}
 		}),
 	)
