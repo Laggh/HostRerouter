@@ -9,6 +9,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
 )
 
@@ -158,12 +159,23 @@ func littleTestFunction() {
 	fmt.Println(loadHostFile())
 }
 
+func checkAdmin() bool {
+	_, err := os.Open("\\\\.\\PHYSICALDRIVE0")
+	return err == nil
+}
+
 func main() {
 
 	prepareHostFile()
 	a := app.New()
 	w := a.NewWindow("Hello World")
-	w.SetTitle("Host Rerouter")
+
+	if checkAdmin() {
+		w.SetTitle("Host Rerouter (Admin)")
+	} else {
+		w.SetTitle("Host Rerouter (SEM ADMIN - APENAS LEITURA)")
+	}
+
 	selectedEntryIndex := -1
 	madeChange := false
 
@@ -380,7 +392,7 @@ func main() {
 			editWindow.Resize(fyne.NewSize(600, 400))
 			editWindow.Show()
 		}),
-		widget.NewButton("Ajuda", func() {
+		widget.NewButton("FAQ e Ajuda", func() {
 			helpWindow := a.NewWindow("Ajuda")
 
 			content, err := os.ReadFile("help.md")
@@ -410,7 +422,12 @@ func main() {
 	// resizeTable(table, int(w.Canvas().Size().Width))
 	content := container.NewBorder(nil, nil, nil, btnContainer, &tableWrapper{Table: table})
 
+	if !checkAdmin() {
+		dialog.ShowInformation("Aviso de Permissão", "O aplicativo não está sendo executado como administrador.\nAs alterações não poderão ser salvas no arquivo hosts.", w)
+	}
+
 	w.Resize(fyne.NewSize(600, 400))
 	w.SetContent(content)
 	w.ShowAndRun()
+
 }
