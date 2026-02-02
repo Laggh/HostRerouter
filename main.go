@@ -419,6 +419,8 @@ func main() {
 			editWindow.SetContent(content)
 			editWindow.Resize(fyne.NewSize(600, 400))
 			editWindow.Show()
+			editWindow.RequestFocus()
+			textArea.FocusGained()
 		}),
 		widget.NewButton("FAQ e Ajuda", func() {
 			helpWindow := a.NewWindow("Ajuda")
