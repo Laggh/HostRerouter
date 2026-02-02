@@ -117,6 +117,8 @@ func parseHostFile(content string) []override {
 			thisOverride.enabled = false
 			line = strings.TrimPrefix(line, "#")
 			line = strings.TrimSpace(line)
+		} else {
+			thisOverride.enabled = true
 		}
 
 		parts := strings.Fields(line)
