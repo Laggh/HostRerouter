@@ -168,7 +168,8 @@ func main() {
 
 	prepareHostFile()
 	a := app.New()
-	w := a.NewWindow("Hello World")
+	w := a.NewWindow("Host Rerouter")
+	w.SetMaster()
 
 	if checkAdmin() {
 		w.SetTitle("Host Rerouter (Admin)")
