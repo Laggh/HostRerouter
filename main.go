@@ -374,6 +374,23 @@ func main() {
 			textArea.SetText(hostContent)
 			saveManualBtn := widget.NewButton("Salvar", func() {
 				newContent := textArea.Text
+				newContentLines := strings.Split(newContent, "\n")
+
+				foundStart := false
+				foundEnd := false
+				for _, line := range newContentLines {
+					if strings.Contains(line, "# Host Rerouter Start") {
+						foundStart = true
+					}
+					if strings.Contains(line, "# Host Rerouter End") {
+						foundEnd = true
+					}
+				}
+				if !foundStart || !foundEnd {
+					dialog.ShowError(fmt.Errorf("As tags '# Host Rerouter Start' e '# Host Rerouter End' devem estar presentes no arquivo."), editWindow)
+					return
+				}
+
 				err := saveHostFileRaw(newContent)
 				if err != nil {
 					println("Erro ao salvar o arquivo hosts:", err)
