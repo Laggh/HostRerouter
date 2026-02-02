@@ -40,5 +40,5 @@ Este botão muda de função dependendo do estado:
 - **Descartar**: Aparece quando você fez alterações na tabela mas ainda não salvou. Clicar nele reverte tudo para como estava no arquivo.
 - **Atualizar**: Aparece quando não há alterações pendentes. Serve para reler o arquivo do disco (útil se você editou o arquivo por outro programa).
 
-v1.0
+v1.1
 
